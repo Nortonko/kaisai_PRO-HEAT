@@ -1,20 +1,23 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # # # #                                   НЕ РЕДАКТИРОВАТЬ!!                                  # # # # #
+# # # # #                                   NEUPRAVOVAŤ!!                                     # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# Компонент климата
+# Komponent klimatizácie
 external_components:
   - source:
-      url: https://github.com/I-am-nightingale/tclac.git
+      # Ukazuje na tento fork, aby bol repozitar sebestacny.
+      # Zafixovane na tag v1.0.0 — funkcny stav sa uz nemeni sam od seba.
+      # Pri prechode na novsiu verziu zmen tag a v repozitari vytvor prislusny git tag.
+      url: https://github.com/Nortonko/kaisai_PRO-HEAT.git
       type: git
-      ref: master
+      ref: v1.0.0
     components: [ tclac ]
-    refresh: 30s
+    refresh: 1d
 
-# Конфигурация ESPHome
+# Konfigurácia ESPHome
 
 substitutions:
-  boot_actions: !lambda |- # Пустые действия по умолчанию
+  boot_actions: !lambda |- # Prázdne akcie – predvolené
 
 esphome:
   name: ${device_name}
@@ -127,18 +130,18 @@ captive_portal:
 
 
 # # # # # # # # # # # # # # # # # # # # # # #
-# # # # #     НЕ РЕДАКТИРОВАТЬ!     # # # # #
+# # # # #     NEUPRAVOVAŤ!     # # # # #
 # # # # # # # # # # # # # # # # # # # # # # #
 
-# ОБЯЗАТЕЛЬНО отключаем логгирование через UART
+# POVINNE vypíname logovanie cez UART
 logger:
   baud_rate: 0
 
-# Раздел настроек устройства:
-# - Переключатели
+# Sekcia nastavení zariadenia:
+# - Prepínače
 switch:
-  # Пищалка для подтверждения команд, по умолчанию выключена
-  - name: Beeper
+  # Pípanie na potvrdenie príkazov, predvolene vypnuté
+  - name: "Pípanie"
     platform: template
     device_class: switch
     id: beep_mode
@@ -154,8 +157,8 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_beeper_state(false);
   
-  # Индикатор уставки температуры на корпусе внутреннего блока, по умолчанию включен
-  - name: Display
+  # Zobrazenie nastavenej teploty na vnútornej jednotke, predvolene zapnuté
+  - name: "Displej jednotky"
     platform: template
     device_class: switch
     id: display_mode
@@ -171,8 +174,8 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_display_state(false);
   
-  # Светодиодная индикация обмена данными с кондиционером, по умолчанию выключена
-  - name: Display on module
+  # LED indikácia komunikácie s klimatizáciou, predvolene vypnuté
+  - name: "LED na module"
     platform: template
     device_class: switch
     id: ledflash_mode
@@ -188,7 +191,7 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_module_display_state(false);
           
-  - name: Force config
+  - name: "Vynútiť nastavenia"
     platform: template
     device_class: switch
     id: force_mode
@@ -204,17 +207,17 @@ switch:
         lambda: !lambda |-
           id(${device_name}climate).set_force_mode_state(false);
 
-# - Выпадающие списки
+# - Rozbaľovacie zoznamy
 select:
-  # Настройка вертикального качания
+  # Nastavenie vertikálneho kývania
   - platform: template
-    name: Vertical swing
+    name: "Vertikálne kývanie"
     id: vswing
     entity_category: config
     options:
-      - "Сверху вниз"
-      - "В верхней половине"
-      - "В нижней половине"
+      - "Zhora nadol"
+      - "V hornej polovici"
+      - "V dolnej polovici"
     optimistic: true
     restore_value: true
     on_value:
@@ -228,16 +231,16 @@ select:
             id(${device_name}climate).set_vertical_swing_direction(esphome::tclac::VerticalSwingDirection::DOWNSIDE);
           }
 
-  # Настройка горизонтального качания
+  # Nastavenie horizontálneho kývania
   - platform: template
-    name: Horizontal swing
+    name: "Horizontálne kývanie"
     id: hswing
     entity_category: config
     options:
-      - "Слева направо"
-      - "В левой части"
-      - "В центре"
-      - "В правой части"
+      - "Zľava doprava"
+      - "V ľavej časti"
+      - "V strede"
+      - "V pravej časti"
     optimistic: true
     restore_value: true
     on_value:
@@ -253,18 +256,18 @@ select:
             id(${device_name}climate).set_horizontal_swing_direction(esphome::tclac::HorizontalSwingDirection::RIGHTSIDE);
           }
 
-  # Настройка фиксации вертикальной заслонки
+  # Nastavenie fixácie vertikálnej lamely
   - platform: template
-    name: Vertical fixing
+    name: "Vertikálna lamela"
     id: vfixing
     entity_category: config
     options:
-      - "Последнее положение"
-      - "До упора вверх"
-      - "В верхней половине"
-      - "По середине"
-      - "В нижней половине"
-      - "До упора вниз"
+      - "Posledná poloha"
+      - "Úplne hore"
+      - "V hornej polovici"
+      - "V strede"
+      - "V dolnej polovici"
+      - "Úplne dole"
     optimistic: true
     restore_value: true
     on_value:
@@ -284,18 +287,18 @@ select:
             id(${device_name}climate).set_vertical_airflow(esphome::tclac::AirflowVerticalDirection::MAX_DOWN);
           }
 
-  # Настройка фиксации горизонатальных заслонок
+  # Nastavenie fixácie horizontálnych lamiel
   - platform: template
-    name: Horizontal fixing
+    name: "Horizontálne lamely"
     id: hfixing
     entity_category: config
     options:
-      - "Последнее положение"
-      - "До упора влево"
-      - "В левой половине"
-      - "По середине"
-      - "В правой половине"
-      - "До упора вправо"
+      - "Posledná poloha"
+      - "Úplne vľavo"
+      - "V ľavej polovici"
+      - "V strede"
+      - "V pravej polovici"
+      - "Úplne vpravo"
     optimistic: true
     restore_value: true
     on_value:
@@ -317,5 +320,5 @@ select:
 
 climate:
   - platform: tclac
-    name: "${device_name} Climate"
+    name: "Klimatizácia"
     id: ${device_name}climate
