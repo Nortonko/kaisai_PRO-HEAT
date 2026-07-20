@@ -1,63 +1,70 @@
-
 substitutions:
-# Уникальное имя этой конфигурации, стоит использовать только латинские буквы и цифры, никаких пробелов или
-# спецсимволов, например, "tclac". Если будет несколько модулей кондиционера, то device_name надо изменить,
-# например, добавляя цифры: tclac1, tclac2, tclac3...
-  device_name: tclac
-# Человеческое имя для кондиционера, для интерфейса:
-  humanly_name: TCL Air Conditioner
-# Настройки подключения к WiFI, данные могут храниться в файле "secret" в ESPHome, если нет- редактируем:
-# Имя точки доступа WiFI:
+# Jedinečný názov tejto konfigurácie. Používaj iba malé latinské písmená a číslice,
+# žiadne medzery ani špeciálne znaky (napr. "kaisai-ph"). Ak budeš mať viac jednotiek,
+# device_name odlíš, napr. kaisai-ph1, kaisai-ph2...
+# POZOR na dĺžku: core.yaml z toho skladá SSID záložného hotspotu ako
+# "{device_name} Fallback Hotspot". WiFi SSID má limit 32 znakov, teda device_name
+# smie mať najviac 15 znakov.
+  device_name: kaisai-ph
+# Zobrazovaný názov jednotky (pre rozhranie Home Assistant):
+  humanly_name: Kaisai PRO HEAT+
+# Pripojenie na WiFi. Údaje môžu byť v súbore "secrets" v ESPHome, inak ich vpíš priamo:
+# Názov (SSID) WiFi siete:
   wifi_ssid: !secret wifi_ssid
-# Пароль точки доступа WiFI:
+# Heslo WiFi siete:
   wifi_password: !secret wifi_password
-# Пароль для точки доступа для восстановления, имя точки доступа будет: "{device_name} Fallback Hotspot"
-  recovery_pass: mKSzmBdt7DAj
-# Пароль для обновления по воздуху, генерируется один раз и потом используется всегда на автомате:
-  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
-# Ключ подключения к Home Assistant API, новый ключ можно получить здесь: https://esphome.io/components/api.html:
-  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-# Выводы модуля, к которым подключен UART:
-  uart_rx: GPIO3
-  uart_tx: GPIO1
-# Выводы модуля для подключения сигнальных светодиодов, для работы надо раскомментировать "leds" в "packages"
-# иначе работать не будет совсем и можно писать сюда вообще что угодною. Для тех, кто просил их удалить.
-  receive_led: GPIO6
-  transmit_led: GPIO4
+# Heslo záložného prístupového bodu; jeho SSID bude: "{device_name} Fallback Hotspot"
+  recovery_pass: !secret recovery_pass
+# Heslo pre aktualizáciu firmvéru „vzduchom" (OTA). Vygeneruje sa raz a používa sa stále:
+  ota_pass: !secret ota_pass
+# Kľúč pre pripojenie k Home Assistant API. Nový kľúč: https://esphome.io/components/api.html
+  api_key: !secret api_key
+# UART piny modulu SLWF-01Pro v2.1 (ESP-12E) smerom ku klimatizácii.
+# DÔLEŽITÉ: pre túto dosku sú to GPIO12/GPIO14 — NIE GPIO3/GPIO1 (tie sú pre ESP-01S)!
+  uart_rx: GPIO14
+  uart_tx: GPIO12
+# Piny pre signalizačné LED. Fungujú len po odkomentovaní "leds" v sekcii "packages",
+# inak sem môžeš napísať čokoľvek. (Pre tých, čo ich chceli odstrániť.)
+  receive_led: GPIO2
+  transmit_led: GPIO2
 
-# Подгружаемые файлы- загружаются и обновляются автоматически из интернета, раскомментировать нужные
-# Описание опций:
-# - packages/leds.yaml - светодиоды для индикации приема/передачи, пины указываются в receive_led / transmit_led
-# - packages/bad_connect.yaml - включение 3-хкратного повтора отправки команд в кондиционер
-# - packages/uart_speed.yaml - включение переключателя скорости UART. Появляется в настройках устройства.
+# Podgružované súbory — načítavajú a aktualizujú sa automaticky z internetu.
+# Odkomentuj tie, ktoré chceš. Popis možností:
+# - packages/leds.yaml        - LED indikácia príjmu/vysielania (piny v receive_led / transmit_led)
+# - packages/bad_connect.yaml - 3-násobný pokus o odoslanie príkazu do jednotky (slabé spojenie)
+# - packages/uart_speed.yaml  - prepínač rýchlosti UART; objaví sa v nastaveniach zariadenia
 #
-# Выравнивать раскомментированные строки обязательно по указанной позиции!
+# Odkomentované riadky POVINNE zarovnaj pod uvedenú pozíciu!
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/Nortonko/kaisai_PRO-HEAT.git
     ref: master
     files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
+    # v - zarovnanie riadkov s balíčkami vykonaj presne pod túto značku, inak to bude glitchovať
+      - packages/core.yaml # Jadro všetkého
       # - packages/leds.yaml
       # - packages/bad_connect.yaml
       # - packages/uart_speed.yaml
     refresh: 30s
 
-# Выбранный модуль, прошиваемой этой прошивкой. Можно раскомментировать готовую заготовку, удалив имеющуюся:
-
-# ESP-01S
+# Zvolený modul, do ktorého sa tento firmvér flashuje.
+# Pre SMLIGHT SLWF-01Pro v2.1 je to ESP8266 / ESP-12E:
 esp8266:
-  board: esp01_1m
+  board: esp12e
 
-# Hommyn HDN/WFN-02-01, из первой статьи
+# --- Príklady iných platforiem (ak by si menil hardvér) ---
+# ESP-01S:
+#esp8266:
+# board: esp01_1m
+#
+# Hommyn HDN/WFN-02-01 (z pôvodného článku):
 #esp32:
-#  board: esp32-c3-devkitm-1
-#  framework:
-#    type: arduino
+# board: esp32-c3-devkitm-1
+# framework:
+# type: arduino
 
-# Светодиод статуса. Включать по желанию при наличии свободных пинов
+# Stavová LED. Zapni podľa potreby, ak máš voľné piny:
 #status_led:
-#  pin:
-#    number: GPIO5
-#    inverted: false
+# pin:
+# number: GPIO5
+# inverted: false
