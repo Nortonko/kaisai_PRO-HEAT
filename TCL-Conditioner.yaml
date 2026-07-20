@@ -38,7 +38,9 @@ substitutions:
 packages:
   remote_package:
     url: https://github.com/Nortonko/kaisai_PRO-HEAT.git
-    ref: master
+    # Zafixované na tag v1.0.0 — upstream zmeny ti už nič nerozbijú.
+    # Pri prechode na novšiu verziu zmeň tag a v repozitári vytvor príslušný git tag.
+    ref: v1.0.0
     files:
     # v - zarovnanie riadkov s balíčkami vykonaj presne pod túto značku, inak to bude glitchovať
       - packages/core.yaml # Jadro všetkého
