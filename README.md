@@ -1,96 +1,128 @@
-If you don't understand Russian, use a translator. It will be easier for you to understand the meaning of the text after it's translated into your language, since it's familiar to you. But if I were to translate from mine into yours, it would be complete crap. By the way, this was also translated. Looks okay, huh?
+# Kaisai PRO HEAT+ — WiFi ovládanie cez ESPHome a Home Assistant
 
-Внешний компонент кондиционеров TCL и аналогов для Home Assistant, используя ESPHome.
-Поддерживаются кондиционеры типа TAC-07CHSA и подобные. Увы, предположить точно получится подключить кондиционер или нет практически
-невозможно из-за огромного разбега в комплектациях: даже одна и та же модель, буквально буква-в-букву может, например, не иметь
-родного модуля WiFI, не иметь провода с USB разъемом или вовсе на плате управления может не быть впаян разъем UART.
-Однако, в целом, с пайкой или без, проверены следующие кондиционеры:
-- Axioma ASX09H1/ASB09H1
-- Ballu BSAI-12HN1_15Y
-- Ballu Discovery DC BSVI-07HN8
-- Ballu Discovery DC BSVI-09HN8
-- Ballu Discovery DC BSVI-12HN8
-- Daichi AIR20AVQ1/AIR20FV1
-- Daichi AIR25AVQS1R-1/AIR25FVS1R-1
-- Daichi AIR35AVQS1R-1/AIR35FVS1R-1
-- Daichi DA35EVQ1-1/DF35EV1-1
-- Dantex RK-12SATI/RK-12SATIE
-- Ecostar Radium KVS-RAD09CH
-- iFFALCON F1 18
-- Royal Clima Gloria Inverter
-- Royal Clima Pandora RC-PDC28HN
-- Tesla TT27TP61S-0932IAWUV
-- TCL ELI ONF 12
-- TCL Liferise ONF 09
-- TCL TAC-CT09INV/R
-- TCL One Inverter TACM-09HRID/E1 (возможно, иной порядок контактов)
-- TCL TAC-07CHSA/TPG-W
-- TCL TAC-09CHSA/TPG
-- TCL TAC-09CHSA/DSEI-W
-- TCL TAC-09HRID/E1
-- TCL TAC-12CHSA/TPG
-- TCL TAC-12CHSA/TPGI
-- TCL TAC-XAL24I
-- TCL TPG31IHB
+Externý komponent pre ESPHome, ktorý umožňuje ovládať klimatizácie/tepelné čerpadlá
+**Kaisai PRO HEAT+** (a ďalšie jednotky na protokole TCL) priamo v **Home Assistant**,
+lokálne a bez cloudu.
 
-Компонент поддерживает длину сообщений от кондиционера в 61, 65 и 68 байт, однако, полноценно проверялся только с 61 байтовыми сообщениями.
+Táto vetva je **prispôsobená konkrétne pre model:**
 
-Компоненту требуется HomeAsistant и ESPHome версии не ниже 2026.4.0 !
-____
-Это все для работы ИСКЛЮЧИТЕЛЬНО с HomeAsistant и ESPHome. Если Вас интересует другие варианты или возможность подключить кондиционер
-как-то иначе к каким-то другим системам, то мне есть что предложить:
-[Вариант для подключения через MQTT](https://github.com/pavel211/TCL-TAC-07-WiFi)
-____
-Статья по проекту находится [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg)
+| Časť | Typové označenie |
+|------|------------------|
+| Vnútorná jednotka | **KRW-12TLHI** |
+| Vonkajšia jednotka | **KRWB-12TLHO** |
 
-Все работает, даже стабильно. Какие глюки видел- устранил, какие желания были- реализовал. Конечно, не все, хотелось бы еще спорткар..
-Используя компонент прямо сейчас Вы уже не рискуете душевным здоровьем, но внезапные глюки вполне могут напасть. Если вдруг такое
-случиться именно с Вами- прошу сообщить мне на Дзене, приму меры.
-Подробное описание будет постепенно появляться [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg) , сюда буду выкладывать
-самое важное по мере сил.
+> Kaisai je pre tento rad vyrábaný na linkách TCL a používa rovnaký sériový (UART)
+> protokol, preto funguje s komponentom `tclac`. Ide o **nástennú split jednotku**
+> s káblom/konektorom pre WiFi modul — nie o monoblok vzduch-voda.
 
-Выразить благодарность в России и Беларуси: карта Озон-банка 2204 3211 5682 2009
+Projekt je fork pôvodného diela [I-am-nightingale/tclac](https://github.com/I-am-nightingale/tclac).
+Poďakovanie autorovi je na konci tohto súboru.
 
-Thank the author for the work: [My Steam account](https://steamcommunity.com/id/solovey-iron/) (yep, I like computer games)
-____
-Образец для конфигурации ESPHome в файле TCL-Conditioner.yaml , упрощенный вариант конфигурации- Sample_conf.yaml . Скачайте к себе
-и используйте в ESPHome, или просто скопируйте из него всю конфигурацию и вставьте вместо своей, однако, не забыв отредактировать
-все поля. В файле есть подсказки по каждому полю.
+---
 
-Вопрос может возникнуть с 2 моментами: платформа (чип или модуль) и подгружаемые файлы. Попробую объяснить.
+## ⚠️ Dôležité upozornenia pred inštaláciou
 
-## Настройка платформы
-Платформа настраивается точно так же, как ей и полагается настраиваться в ESPHome. Например, так выглядит кусок кода для ESP-01S:
+1. **Hardvér.** Táto konfigurácia je pripravená pre WiFi modul **SMLIGHT SLWF-01Pro v2.1**
+   (čip ESP8266 / ESP-12E). Na tejto doske je UART smerom ku klimatizácii vyvedený na
+   **GPIO12 (TX)** a **GPIO14 (RX)**. Ak použiješ inú dosku (ESP-01S, ESP32-C3…),
+   piny aj sekciu platformy si musíš upraviť.
+
+2. **Rozostavenie pinov konektora.** SLWF-01Pro bol z výroby navrhnutý pre „Midea"
+   rozostavenie pinov. Konektor Kaisai/TCL vyzerá podobne (tvar USB-A), ale **nemusí
+   mať rovnaké poradie vodičov.** Pred prvým zasunutím do jednotky over multimetrom,
+   ktorý pin nesie GND / +5 V / TX / RX. Pri nezhode hrozí poškodenie modulu alebo
+   riadiacej dosky. V prípade pochybností prepoj vodiče napriamo na piny, nespoliehaj sa
+   na to, že „keď to zapadne, musí to fungovať".
+
+3. **Verzia ESPHome.** Komponent vyžaduje **Home Assistant a ESPHome minimálne 2026.4.0**.
+   Testované na 2026.6.x / 2026.7.0.
+
+4. **Dĺžka správ.** Komponent podporuje správy z jednotky s dĺžkou 61, 65 a 68 bajtov;
+   plne overená je zatiaľ len 61-bajtová varianta. Ak jednotka nekomunikuje spoľahlivo,
+   pozri voliteľné balíčky nižšie (`bad_connect.yaml`, `uart_speed.yaml`).
+
+---
+
+## 🛠️ Čo budeš potrebovať
+
+- Klimatizáciu **Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO)** s portom pre WiFi modul
+- WiFi modul **SMLIGHT SLWF-01Pro v2.1** (ESP8266/ESP-12E)
+- **Home Assistant** s doplnkom **ESPHome Device Builder** (verzia ≥ 2026.4.0)
+
+---
+
+## 🧠 Inštalácia v Home Assistant
+
+### 1. Nainštaluj ESPHome
+V Home Assistant: **Nastavenia → Doplnky → Obchod s doplnkami → ESPHome Device Builder**.
+
+### 2. Vytvor nové zariadenie
+V ESPHome dashboarde: **New Device**. Pri prvom flashnutí pripoj modul cez USB/UART;
+ďalšie aktualizácie už pôjdu bezdrôtovo (OTA).
+
+### 3. Vlož konfiguráciu
+Zvoľ jednu z dvoch:
+
+- **Jednoduchá** → [`Sample_conf.yaml`](Sample_conf.yaml)
+- **Podrobná (s komentármi ku každému poľu)** → [`TCL-Conditioner.yaml`](TCL-Conditioner.yaml)
+
+Skopíruj obsah do svojho zariadenia v ESPHome a **uprav polia** (WiFi, názvy, kľúče).
+Nápoveda ku každému poľu je priamo v komentároch YAML.
+
+### 4. Flashni modul
+Prvýkrát cez USB/UART, potom už OTA.
+
+---
+
+## 🔌 Platforma a zapojenie (SLWF-01Pro v2.1)
+
+Sekcia platformy v YAML pre tento modul:
+
 ```yaml
 esp8266:
-  board: esp01_1m
-```
-А вот так выглядит кусок кода для модуля Hommyn HDN/WFN-02-01 из первой статьи про кондиционер:
-```yaml
-esp32:
-  board: esp32-c3-devkitm-1
-  framework:
-    type: arduino
-```
-Можно подключать платформу и через основной конфиг. Вот, предложенный [испытателем альфа-версии](https://github.com/kai-zer-ru), пример для Esp32 WROOM32:
-```yaml
-esphome:
-  platform: ESP32
-  board: nodemcu-32s
-```
-А это уже пример для wemos D1 Mini nodemcu esp12f:
-```yaml
-esphome:
-  platform: ESP8266
   board: esp12e
 ```
-В общем- все то же самое, как и обычно, вариант под свою платформу легко ищется в интернете.
 
-**!Важно не забыть закомментировать или удалить строки других платформ!**
+UART piny (v sekcii `substitutions:`):
 
-## Настройка IP адреса
-По умолчанию, IP адрес получается автоматически от DHCP сервера. Однако, можно назначить
-IP адрес вручную. Для этого в самом конце файла конфигурации добавьте следующее:
+```yaml
+uart_tx: GPIO12
+uart_rx: GPIO14
+```
+
+Predvolené hodnoty `GPIO3 / GPIO1` z pôvodného projektu sú pre **ESP-01S** — pre
+SLWF-01Pro ich **nepoužívaj**.
+
+---
+
+## 📦 Podgružované (remote) balíčky
+
+Konfigurácia sa načítava modulárne z GitHubu cez sekciu `packages:`. Povinné je jadro,
+ostatné moduly sú voliteľné:
+
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/Nortonko/kaisai_PRO-HEAT.git
+    ref: master
+    files:
+    # v - riadky s balíčkami zarovnaj presne pod túto značku, inak ESPHome hlási chyby
+      - packages/core.yaml          # POVINNÉ jadro (wifi/api/ota/uart/climate…)
+      # - packages/leds.yaml        # LED indikácia príjmu/vysielania (piny receive_led / transmit_led)
+      # - packages/bad_connect.yaml # 3-násobný pokus o odoslanie príkazu pri slabom spojení
+      # - packages/uart_speed.yaml  # prepínač rýchlosti UART v nastaveniach zariadenia
+    refresh: 30s
+```
+
+> **Zarovnanie je povinné.** Všetky riadky `- packages/…` musia začínať na tej istej
+> pozícii ako značka `# v`. Zlé odsadenie = záplava nejasných chýb z ESPHome.
+
+`url:` je nastavené na **tento fork**, takže repozitár je samostatný. Ak by si chcel
+ťažiť z opráv v pôvodnom projekte, môžeš `url:` dočasne prepnúť na
+`https://github.com/I-am-nightingale/tclac.git`.
+
+### Ručné pridelenie IP adresy (voliteľné)
+Predvolene sa IP získa z DHCP. Ak chceš statickú, pridaj na koniec konfigurácie:
 
 ```yaml
 wifi:
@@ -100,79 +132,35 @@ wifi:
     subnet: 255.255.255.0
 ```
 
-## Настройка подгружаемых файлов
-Для добавления или удаления определенных частей конфига я решил использовать подгружаемые файлы- они загружаются ESPHome автоматически,
-если у сервера с Home Assistant есть доступ в интернет. Такой подход позволяет редактировать и обновлять не весь конфиг куском,
-а частями, не трогая то, что работает.
-Еще один плюс- не нужно километровые куски кода комментировать или раскомментировать, не нужно знать разметку, нет необходимости считать
-проклятые пробелы и прочее. Все делается добавлением или удалением ссылок на файлы. Итак, вот так выглядит блок подгружаемых файлов:
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
-      # - packages/leds.yaml
-    refresh: 30s
-```
-Все подгружаемые файлы указываются в секции **files:**. Для работы необходимо, чтобы был хотя-бы
-```yaml
-- packages/core.yaml # Ядро всего сущего
-```
-Все остальные модули по желанию (их описание в том же файле чуть выше). **Важно**, чтобы все строки с файлами были выровнены по
-импровизированной метке, которую я специально указал, иначе у ESPHome возникнет много вопросов к Вам. Например, **должно быть так:**
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
-      - packages/leds.yaml
-    refresh: 30s
-```
-Например, так подключается 3 кратный повтор отправки комманд в случае, если связь плохая (packages/bad_connect.yaml):
+---
 
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
-      - packages/leds.yaml
-	  - packages/bad_connect.yaml
-    refresh: 30s
-```
+## ✅ Overené jednotky (z pôvodného projektu)
 
-А так подключается переключатель скорости UART в настройках для тех, у кого кондиционер работает на другой скорости (packages/uart_speed.yaml):
+Okrem Kaisai PRO HEAT+ boli komunitne overené aj ďalšie jednotky na rovnakom protokole
+(s pájkovaním aj bez neho). Presne predpovedať kompatibilitu nie je možné — aj tá istá
+modelová značka sa líši výbavou (chýbajúci WiFi modul, chýbajúci USB kábel, nezapájkovaný
+UART konektor na doske):
 
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
-      - packages/leds.yaml
-	  - packages/uart_speed.yaml
-    refresh: 30s
-```
+- Axioma ASX09H1/ASB09H1
+- Ballu BSAI-12HN1_15Y; Ballu Discovery DC BSVI-07/09/12HN8
+- Daichi AIR20AVQ1/AIR20FV1, AIR25AVQS1R-1, AIR35AVQS1R-1, DA35EVQ1-1
+- Dantex RK-12SATI/RK-12SATIE
+- Ecostar Radium KVS-RAD09CH
+- iFFALCON F1 18
+- Royal Clima Gloria Inverter; Royal Clima Pandora RC-PDC28HN
+- Tesla TT27TP61S-0932IAWUV
+- TCL: ELI ONF 12, Liferise ONF 09, TAC-CT09INV/R, TAC-07/09/12CHSA (rôzne varianty),
+  TAC-09HRID/E1, TAC-XAL24I, TPG31IHB a ďalšie
 
-А вот так уже **не правильно:**
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
-    ref: master
-    files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
-        - packages/leds.yaml
-    refresh: 30s
-```
+---
+
+## 🙏 Poďakovanie
+
+- Pôvodný komponent a všetka zásluha za protokol: **[I-am-nightingale/tclac](https://github.com/I-am-nightingale/tclac)**
+- Článok k projektu (v ruštine): <https://dzen.ru/a/ZmdoyUNswXWnulhg>
+- Poďakovať autorovi: [jeho Steam profil](https://steamcommunity.com/id/solovey-iron/)
+- Alternatíva cez MQTT (iný projekt): <https://github.com/pavel211/TCL-TAC-07-WiFi>
+
+Táto vetva len prekladá dokumentáciu do slovenčiny a prispôsobuje konfiguráciu modelu
+Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO) na module SLWF-01Pro v2.1. Samotný kód
+komponentu (`components/tclac`) je dielom pôvodného autora.
