@@ -2,7 +2,7 @@
 * Create by Miguel Ángel López on 20/07/19
 * and modify by xaxexa
 * Refactoring & component making:
-* Соловей с паяльником 15.03.2024
+* Solovej so spájkovačkou 15.03.2024
 **/
 
 #ifndef TCL_ESP_TCL_H
@@ -18,11 +18,11 @@ namespace tclac {
 
 #define SET_TEMP_MASK	0b00001111
 
-// Сколько раз повторять командный кадр за одну отправку (обход маргинальной
-// линии TX 3.3В->5В без конвертера уровней). Повторы неблокирующие и
-// разнесены по времени, чтобы каждый был отдельной честной попыткой, а не
-// очередью, которую контроллер кондиционера глотает как один кадр.
-// С аппаратным конвертером уровней достаточно 1.
+// Koľkokrát zopakovať príkazový rámec pri jednom odoslaní (obídenie hraničnej
+// linky TX 3.3V->5V bez prevodníka úrovní). Opakovania sú neblokujúce a
+// rozložené v čase, aby každé bolo samostatným plnohodnotným pokusom, a nie
+// frontou, ktorú riadiaca doska klimatizácie prehltne ako jeden rámec.
+// S hardvérovým prevodníkom úrovní stačí 1.
 #ifdef REPEAT_TX
 	#define TX_REPEAT				3
 #else
@@ -30,21 +30,21 @@ namespace tclac {
 #endif
 
 
-// Пауза между повторами командного кадра
+// Pauza medzi opakovaniami príkazového rámca
 #define TX_REPEAT_SPACING_MS	200
-// «Слушай, потом говори»: не передавать, пока линия занята приёмом.
-// Тишина на линии, после которой можно говорить (25мс ~= 24 байт-тайма на 9600):
+// „Počúvaj, potom hovor“: nevysielať, kým je linka zaneprázdnená príjmom.
+// Ticho na linke, po ktorom možno vysielať (25 ms ~= 24 bajt-časov pri 9600):
 #define BUS_QUIET_MS			25
-// Окно ожидания ответа кондиционера после нашего опроса: в это окно командные
-// кадры не отправляем, пока ответ не пришёл (ответ ~64мс, старт в ~150мс)
+// Okno čakania na odpoveď klimatizácie po našom dopyte: v tomto okne príkazové
+// rámce neodosielame, kým odpoveď nedorazí (odpoveď ~64 ms, štart ~150 ms)
 #define POLL_RESPONSE_WINDOW_MS	400
-// Максимум откладываний отправки из-за занятой линии (потом шлём как есть)
+// Maximálny počet odkladov odoslania kvôli zaneprázdnenej linke (potom pošleme tak či tak)
 #define TX_MAX_DEFERS			12
 
 #define MODE_POS		7
-// Бит 0b00100000 в байте режима — состояние ДИСПЛЕЯ кондиционера, он не
-// должен участвовать в определении режима (иначе с погашенным дисплеем
-// любой режим читается как "не распознан" и падает в default = AUTO)
+// Bit 0b00100000 v bajte režimu — stav DISPLEJA klimatizácie, nesmie
+// sa podieľať na určení režimu (inak sa pri zhasnutom displeji
+// každý režim číta ako "nerozpoznaný" a spadne do default = AUTO)
 #define DISPLAY_BIT		0b00100000
 #define MODE_MASK		0b00001111
 
@@ -114,13 +114,13 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 	private:
 		uint8_t checksum;
 		uint8_t check = 0;
-		// dataTX с управлением состоит из 38 байт
+		// dataTX s riadením pozostáva z 38 bajtov
 		uint8_t dataTX[38];
-		// А dataRX в некоторых моделях разбухает до 68 байт
+		// dataRX pri niektorých modeloch narastá až na 68 bajtov
 		uint8_t dataRX[68];
-		// Команда запроса состояния
+		// Príkaz na dopyt stavu
 		uint8_t poll[8] = {0xBB,0x00,0x01,0x04,0x02,0x01,0x00,0xBD};
-		// Инициализация и начальное наполнение переменных состоянй переключателей
+		// Inicializácia a počiatočné naplnenie premenných stavu prepínačov
 		bool beeper_status_;
 		bool display_status_;
 		bool force_mode_status_;
@@ -133,10 +133,10 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		uint8_t switch_climate_mode = 0;
 		bool allow_take_control = false;
 
-		// «Слушай, потом говори»: метки времени активности линии
-		uint32_t last_rx_ms_ = 0;    // последний принятый байт от кондиционера
-		uint32_t poll_sent_ms_ = 0;  // когда отправлен последний опрос статуса
-		uint8_t tx_size_ = 0;        // размер отправляемого кадра (для повторов)
+		// „Počúvaj, potom hovor“: časové značky aktivity linky
+		uint32_t last_rx_ms_ = 0;    // posledný prijatý bajt od klimatizácie
+		uint32_t poll_sent_ms_ = 0;  // kedy bol odoslaný posledný dopyt stavu
+		uint8_t tx_size_ = 0;        // veľkosť odosielaného rámca (pre opakovania)
 
 		bool bus_quiet_();
 		void try_send_frame_(uint8_t attempt, uint8_t defers_left);
@@ -156,8 +156,8 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void update() override;
 		void set_beeper_state(bool state);
 		void set_display_state(bool disp_state);
-		// Фактическое состояние дисплея кондиционера (синхронизируется из
-		// статусных кадров в readData)
+		// Skutočný stav displeja klimatizácie (synchronizuje sa zo
+		// stavových rámcov v readData)
 		bool get_display_state() { return this->display_status_; }
 		void dataShow(bool flow, bool shine);
 		void set_force_mode_state(bool f_state);
