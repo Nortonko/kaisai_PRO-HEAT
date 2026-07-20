@@ -1,4 +1,4 @@
-﻿from esphome import automation, pins
+from esphome import automation, pins
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate, uart
@@ -48,7 +48,7 @@ tclac_ns = cg.esphome_ns.namespace("tclac")
 tclacClimate = tclac_ns.class_("tclacClimate", uart.UARTDevice, climate.Climate, cg.PollingComponent)
 
 SUPPORTED_FAN_MODES_OPTIONS = {
-    "AUTO": ClimateMode.CLIMATE_FAN_AUTO,  # Доступен всегда
+    "AUTO": ClimateMode.CLIMATE_FAN_AUTO,  # Dostupné vždy
     "QUIET": ClimateMode.CLIMATE_FAN_QUIET,
     "LOW": ClimateMode.CLIMATE_FAN_LOW,
     "MIDDLE": ClimateMode.CLIMATE_FAN_MIDDLE,
@@ -59,15 +59,15 @@ SUPPORTED_FAN_MODES_OPTIONS = {
 }
 
 SUPPORTED_SWING_MODES_OPTIONS = {
-    "OFF": ClimateSwingMode.CLIMATE_SWING_OFF,  # Доступен всегда
+    "OFF": ClimateSwingMode.CLIMATE_SWING_OFF,  # Dostupné vždy
     "VERTICAL": ClimateSwingMode.CLIMATE_SWING_VERTICAL,
     "HORIZONTAL": ClimateSwingMode.CLIMATE_SWING_HORIZONTAL,
     "BOTH": ClimateSwingMode.CLIMATE_SWING_BOTH,
 }
 
 SUPPORTED_CLIMATE_MODES_OPTIONS = {
-    "OFF": ClimateMode.CLIMATE_MODE_OFF,  # Доступен всегда
-    "AUTO": ClimateMode.CLIMATE_MODE_HEAT_COOL,  # Доступен всегда
+    "OFF": ClimateMode.CLIMATE_MODE_OFF,  # Dostupné vždy
+    "AUTO": ClimateMode.CLIMATE_MODE_HEAT_COOL,  # Dostupné vždy
     "COOL": ClimateMode.CLIMATE_MODE_COOL,
     "HEAT": ClimateMode.CLIMATE_MODE_HEAT,
     "DRY": ClimateMode.CLIMATE_MODE_DRY,
@@ -75,7 +75,7 @@ SUPPORTED_CLIMATE_MODES_OPTIONS = {
 }
 
 SUPPORTED_CLIMATE_PRESETS_OPTIONS = {
-    "NONE": ClimatePreset.CLIMATE_PRESET_NONE, # Доступен всегда
+    "NONE": ClimatePreset.CLIMATE_PRESET_NONE, # Dostupné vždy
     "ECO": ClimatePreset.CLIMATE_PRESET_ECO,
     "SLEEP": ClimatePreset.CLIMATE_PRESET_SLEEP,
     "COMFORT": ClimatePreset.CLIMATE_PRESET_COMFORT,
@@ -116,33 +116,33 @@ AIRFLOW_HORIZONTAL_DIRECTION_OPTIONS = {
     "MAX_RIGHT": AirflowHorizontalDirection.MAX_RIGHT,
 }
 
-# Проверка конфигурации интерфейса и принятие значений по умолчанию
+# Kontrola konfigurácie rozhrania a prevzatie predvolených hodnôt
 def validate_visual(config):
     if CONF_VISUAL in config:
         visual_config = config[CONF_VISUAL]
         if CONF_MIN_TEMPERATURE in visual_config:
             min_temp = visual_config[CONF_MIN_TEMPERATURE]
             if min_temp < TCLAC_MIN_TEMPERATURE:
-                raise cv.Invalid(f"Указанная интерфейсная минимальная температура в {min_temp} ниже допустимой {TCLAC_MIN_TEMPERATURE} для кондиционера")
+                raise cv.Invalid(f"Zadaná minimálna teplota rozhrania {min_temp} je nižšia než povolená {TCLAC_MIN_TEMPERATURE} pre klimatizáciu")
         else:
             config[CONF_VISUAL][CONF_MIN_TEMPERATURE] = TCLAC_MIN_TEMPERATURE
         if CONF_MAX_TEMPERATURE in visual_config:
             max_temp = visual_config[CONF_MAX_TEMPERATURE]
             if max_temp > TCLAC_MAX_TEMPERATURE:
-                raise cv.Invalid(f"Указанная интерфейсная максимальная температура в {max_temp} выше допустимой {TCLAC_MAX_TEMPERATURE} для кондиционера")
+                raise cv.Invalid(f"Zadaná maximálna teplota rozhrania {max_temp} je vyššia než povolená {TCLAC_MAX_TEMPERATURE} pre klimatizáciu")
         else:
             config[CONF_VISUAL][CONF_MAX_TEMPERATURE] = TCLAC_MAX_TEMPERATURE
         if CONF_TEMPERATURE_STEP in visual_config:
             temp_step = config[CONF_VISUAL][CONF_TEMPERATURE_STEP][CONF_TARGET_TEMPERATURE]
             if ((int)(temp_step * 2)) / 2 != temp_step:
-                raise cv.Invalid(f"Указанный шаг температуры {temp_step} не корректен, должен быть кратен 1")
+                raise cv.Invalid(f"Zadaný krok teploty {temp_step} nie je správny, musí byť násobkom 1")
         else:
             config[CONF_VISUAL][CONF_TEMPERATURE_STEP] = {CONF_TARGET_TEMPERATURE: TCLAC_TARGET_TEMPERATURE_STEP,CONF_CURRENT_TEMPERATURE: TCLAC_CURRENT_TEMPERATURE_STEP,}
     else:
         config[CONF_VISUAL] = {CONF_MIN_TEMPERATURE: TCLAC_MIN_TEMPERATURE,CONF_MAX_TEMPERATURE: TCLAC_MAX_TEMPERATURE,CONF_TEMPERATURE_STEP: {CONF_TARGET_TEMPERATURE: TCLAC_TARGET_TEMPERATURE_STEP,CONF_CURRENT_TEMPERATURE: TCLAC_CURRENT_TEMPERATURE_STEP,},}
     return config
 
-# Проверка конфигурации компонента и принятие значений по умолчанию
+# Kontrola konfigurácie komponentu a prevzatie predvolených hodnôt
 CONFIG_SCHEMA = cv.All(
     climate.climate_schema(tclacClimate)
     .extend(
@@ -184,7 +184,7 @@ HorizontalSwingDirectionAction = tclac_ns.class_("HorizontalSwingDirectionAction
 
 TCLAC_ACTION_BASE_SCHEMA = automation.maybe_simple_id({cv.GenerateID(CONF_ID): cv.use_id(tclacClimate),})
 
-# Регистрация событий включения и отключения дисплея кондиционера
+# Registrácia udalostí zapnutia a vypnutia displeja klimatizácie
 @automation.register_action(
     "climate.tclac.display_on", DisplayOnAction, cv.Schema, synchronous=True
 )
@@ -196,7 +196,7 @@ async def display_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg, paren)
     return var
 
-# Регистрация событий включения и отключения пищалки кондиционера
+# Registrácia udalostí zapnutia a vypnutia pípania klimatizácie
 @automation.register_action(
     "climate.tclac.beeper_on", BeeperOnAction, cv.Schema, synchronous=True
 )
@@ -208,7 +208,7 @@ async def beeper_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg, paren)
     return var
 
-# Регистрация событий включения и отключения светодиодов связи модуля
+# Registrácia udalostí zapnutia a vypnutia LED komunikácie modulu
 @automation.register_action(
     "climate.tclac.module_display_on", ModuleDisplayOnAction, cv.Schema, synchronous=True
 )
@@ -220,7 +220,7 @@ async def module_display_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg, paren)
     return var
     
-# Регистрация событий включения и отключения принудительного применения настроек
+# Registrácia udalostí zapnutia a vypnutia vynúteného použitia nastavení
 @automation.register_action(
     "climate.tclac.force_mode_on", ForceOnAction, cv.Schema, synchronous=True
 )
@@ -232,7 +232,7 @@ async def force_mode_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg, paren)
     return var
 
-# Регистрация события установки вертикальной фиксации заслонки
+# Registrácia udalosti nastavenia vertikálnej fixácie lamely
 @automation.register_action(
     "climate.tclac.set_vertical_airflow",
     VerticalAirflowAction,
@@ -254,7 +254,7 @@ async def tclac_set_vertical_airflow_to_code(config, action_id, template_arg, ar
     return var
 
 
-# Регистрация события установки горизонтальной фиксации заслонок
+# Registrácia udalosti nastavenia horizontálnej fixácie lamiel
 @automation.register_action(
     "climate.tclac.set_horizontal_airflow",
     HorizontalAirflowAction,
@@ -274,7 +274,7 @@ async def tclac_set_horizontal_airflow_to_code(config, action_id, template_arg, 
     return var
 
 
-# Регистрация события установки вертикального качания шторки
+# Registrácia udalosti nastavenia vertikálneho kývania lamely
 @automation.register_action(
     "climate.tclac.set_vertical_swing_direction",
     VerticalSwingDirectionAction,
@@ -294,7 +294,7 @@ async def tclac_set_vertical_swing_direction_to_code(config, action_id, template
     return var
 
 
-# Регистрация события установки горизонтального качания шторок
+# Registrácia udalosti nastavenia horizontálneho kývania lamiel
 @automation.register_action(
     "climate.tclac.set_horizontal_swing_direction",
     HorizontalSwingDirectionAction,
@@ -314,7 +314,7 @@ async def tclac_set_horizontal_swing_direction_to_code(config, action_id, templa
     return var
 
 
-# Добавление конфигурации в код
+# Pridanie konfigurácie do kódu
 def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     yield cg.register_component(var, config)
