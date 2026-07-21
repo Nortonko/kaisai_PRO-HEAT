@@ -380,6 +380,8 @@ void tclacClimate::takeControl() {
 			dataTX[7] += 0b00000100;
 			dataTX[8] += 0b00000001;	
 			break;
+		default:
+			break;
 	}
 
 	// Nastavujeme režim ventilátora
@@ -417,6 +419,8 @@ void tclacClimate::takeControl() {
 				dataTX[8]	+= 0b01000000;
 				dataTX[10]	+= 0b00000000;
 				break;
+			default:
+				break;
 		}
 	}
 	
@@ -453,6 +457,8 @@ void tclacClimate::takeControl() {
 				break;
 			case ClimatePreset::CLIMATE_PRESET_COMFORT:
 				dataTX[8]	+= 0b00010000;
+				break;
+			default:
 				break;
 		}
 	}
