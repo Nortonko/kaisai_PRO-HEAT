@@ -7,38 +7,45 @@ sú zaznamenané v tomto súbore.
 Formát vychádza z [Keep a Changelog](https://keepachangelog.com/sk/1.0.0/)
 a projekt používa [sémantické verzovanie](https://semver.org/lang/sk/).
 
+## [1.0.1] – 2026-07-20
+
+Slovenský preklad samotného komponentu, kozmetické úpravy `core.yaml`
+a potlačenie kompilačných varovaní.
+
+### Pridané
+- `default: break;` do `switch` blokov `mode`, `fan_mode` a `preset`
+  v `components/tclac/tclac.cpp`.
+
+### Zmenené
+- Kompletný slovenský preklad komponentu `components/tclac` — komentáre v
+  `tclac.cpp`, `tclac.h`, `automation.h` a tri validačné hlášky v `climate.py`.
+  Autorský podpis prepísaný do latinky, atribúcie zachované.
+- `core.yaml`: rozbaľovacie zoznamy (kývanie/fixácia lamiel) a názvy prepínačov
+  preložené do slovenčiny; preložené aj všetky komentáre.
+- `core.yaml`: názov climate entity zmenený z `"${device_name} Climate"` na
+  `"Klimatizácia"` — odstránená duplicita v názve entity v Home Assistant.
+- `core.yaml`: `external_components` presmerované na tento fork, `refresh`
+  znížený na `1d`.
+- `ref` zafixovaný z `master` na tag `v1.0.1` (v `core.yaml` aj v konfigu
+  zariadenia) — build sa už neriadi pohyblivým upstreamom.
+
+### Opravené
+- Potlačené `-Wswitch` varovania pri kompilácii (*enumeration value not handled
+  in switch*) pridaním `default: break;`. Správanie sa nemení — dané režimy
+  aj tak nie sú v `supported_modes`, takže sa v UI nedajú vybrať.
+
+### Odstránené
+- `packages/screen.yaml` (OLED SSD1306) — pre SLWF-01Pro v2.1 nepoužiteľné;
+  odstránené aj zmienky v dokumentácii.
+
+### Poznámky
+- Po vydaní vytvor git tag `v1.0.1`; `core.yaml` aj konfig zariadenia naň už
+  odkazujú cez `ref`.
+
 ## [1.0.0] – 2026-07-20
 
 Prvé vydanie prispôsobené pre **Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO)**
 na WiFi module **SMLIGHT SLWF-01Pro v2.1**.
 
 ### Pridané
-- Slovenský preklad `README.md` vrátane hlavičky s typovým označením jednotky.
-- Sekcia s upozorneniami pred inštaláciou (hardvér, rozostavenie pinov konektora,
-  minimálna verzia ESPHome, dĺžka správ).
-- Popis platformy a zapojenia pre SLWF-01Pro v2.1 (ESP-12E, GPIO12/GPIO14).
-- Tento súbor `CHANGELOG.md`.
-
-### Zmenené
-- `Sample_conf.yaml` aj `TCL-Conditioner.yaml` preložené do slovenčiny (komentáre).
-- Platforma prepnutá na `esp8266: board: esp12e` (predtým ESP-01S / nodemcu-32s).
-- UART piny zmenené na `uart_tx: GPIO12` a `uart_rx: GPIO14` podľa hardvéru
-  SLWF-01Pro v2.1 (predtým GPIO3/GPIO1, čo platí len pre ESP-01S).
-- `packages: url:` presmerované na tento fork
-  (`https://github.com/Nortonko/kaisai_PRO-HEAT.git`) namiesto pôvodného repozitára.
-- Predvolené `device_name` / `humanly_name` nastavené na Kaisai PRO HEAT+,
-  vrátane poznámky o 15-znakovom limite pre `device_name`.
-
-### Bezpečnosť
-- Citlivé polia `recovery_pass`, `ota_pass` a `api_key` presunuté na `!secret`
-  namiesto natvrdo zapísaných hodnôt v ukážkových súboroch.
-
-### Poznámky
-- Kód samotného komponentu (`components/tclac`) nebol menený — protokol a všetka
-  zásluha zostávajú dielom pôvodného autora.
-- Kompatibilita bola overená proti ESPHome 2026.6.x / 2026.7.0; komponent vyžaduje
-  minimálne 2026.4.0.
-- Fyzické rozostavenie pinov konektora Kaisai/TCL nie je overené meraním — pred
-  pripojením modulu skontroluj multimetrom GND / +5 V / TX / RX.
-
-[1.0.0]: https://github.com/Nortonko/kaisai_PRO-HEAT/releases/tag/v1.0.0
+- Slovenský
