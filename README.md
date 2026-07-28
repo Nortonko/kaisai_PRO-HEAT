@@ -1,166 +1,111 @@
-# Kaisai PRO HEAT+ — WiFi ovládanie cez ESPHome a Home Assistant
+# Komponent `kaisai_ac` — Kaisai PRO HEAT+ (protokol A5/115200)
 
-Externý komponent pre ESPHome, ktorý umožňuje ovládať klimatizácie/tepelné čerpadlá
-**Kaisai PRO HEAT+** (a ďalšie jednotky na protokole TCL) priamo v **Home Assistant**,
-lokálne a bez cloudu.
+Externý ESPHome komponent na plné lokálne ovládanie klimatizácií **Kaisai PRO HEAT+**
+(KRW-12TLHI / KRWB-12TLHO) a príbuzných TCL jednotiek, ktoré po UART komunikujú
+**vlastným protokolom s hlavičkou `0xA5` pri 115200 baud** a kontrolným súčtom
+CRC16-XMODEM.
 
-Táto vetva je **prispôsobená konkrétne pre model:**
+> ⚠️ Toto **nie je** ten istý protokol ako projekt `tclac` (ten je `BB`/9600).
+> Ide o novšiu vetvu, ktorá bola zreverzovaná z reálnej prevádzky originálneho
+> WiFi modulu **TCWBRCU1** (Tuya WBR3). Ak tvoja jednotka po zapojení posiela
+> rámce začínajúce `A5` pri 115200, si na správnom mieste.
 
-| Časť | Typové označenie |
-|------|------------------|
-| Vnútorná jednotka | **KRW-12TLHI** |
-| Vonkajšia jednotka | **KRWB-12TLHO** |
+## Čo komponent poskytuje
 
-> Kaisai je pre tento rad vyrábaný na linkách TCL a používa rovnaký sériový (UART)
-> protokol, preto funguje s komponentom `tclac`. Ide o **nástennú split jednotku**
-> s káblom/konektorom pre WiFi modul — nie o monoblok vzduch-voda.
+- **climate entita**: režim (OFF / chladenie / kúrenie / sušenie / ventilátor / auto),
+  cieľová teplota (16–31 °C), aktuálna teplota, ventilátor (8 stupňov:
+  AUTO/MUTE/LOW/LOW-MID/MID/MID-HIGH/HIGH/TURBO), swing (OFF/vert/horiz/both)
+- **switch**: ECO, Sleep, Health, Anti-mildew
+- **select**: poloha vertikálnej a horizontálnej lamely (kývanie, prúdové režimy,
+  odstupňované polohy)
 
-Projekt je fork pôvodného diela [I-am-nightingale/tclac](https://github.com/I-am-nightingale/tclac).
-Poďakovanie autorovi je na konci tohto súboru.
+## Hardvér — dôležité
 
----
+Klimatizácia má **5 V UART**. WiFi modul preto musí vysielať na 5 V úrovni —
+priame 3,3 V z holého ESP (napr. D1 mini) jednotka **nepočuje** a povely ignoruje.
+Odporúčaný modul je **SMLIGHT SLWF-01Pro v2.1**, ktorý má prevodník úrovní na doske.
+Prípadne externý level shifter (BSS138 / 74AHCT125) na smere ESP TX → AC RX.
 
-## ⚠️ Dôležité upozornenia pred inštaláciou
+Zapojenie a kompletný device config sú v `kaisai-ac-example.yaml`.
 
-1. **Hardvér.** Táto konfigurácia je pripravená pre WiFi modul **SMLIGHT SLWF-01Pro v2.1**
-   (čip ESP8266 / ESP-12E). Na tejto doske je UART smerom ku klimatizácii vyvedený na
-   **GPIO12 (TX)** a **GPIO14 (RX)**. Ak použiješ inú dosku (ESP-01S, ESP32-C3…),
-   piny aj sekciu platformy si musíš upraviť.
-
-2. **Rozostavenie pinov konektora.** SLWF-01Pro bol z výroby navrhnutý pre „Midea"
-   rozostavenie pinov. Konektor Kaisai/TCL vyzerá podobne (tvar USB-A), ale **nemusí
-   mať rovnaké poradie vodičov.** Pred prvým zasunutím do jednotky over multimetrom,
-   ktorý pin nesie GND / +5 V / TX / RX. Pri nezhode hrozí poškodenie modulu alebo
-   riadiacej dosky. V prípade pochybností prepoj vodiče napriamo na piny, nespoliehaj sa
-   na to, že „keď to zapadne, musí to fungovať".
-
-3. **Verzia ESPHome.** Komponent vyžaduje **Home Assistant a ESPHome minimálne 2026.4.0**.
-   Testované na 2026.6.x / 2026.7.0.
-
-4. **Dĺžka správ.** Komponent podporuje správy z jednotky s dĺžkou 61, 65 a 68 bajtov;
-   plne overená je zatiaľ len 61-bajtová varianta. Ak jednotka nekomunikuje spoľahlivo,
-   pozri voliteľné balíčky nižšie (`bad_connect.yaml`, `uart_speed.yaml`).
-
----
-
-## 🛠️ Čo budeš potrebovať
-
-- Klimatizáciu **Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO)** s portom pre WiFi modul
-- WiFi modul **SMLIGHT SLWF-01Pro v2.1** (ESP8266/ESP-12E)
-- **Home Assistant** s doplnkom **ESPHome Device Builder** (verzia ≥ 2026.4.0)
-
----
-
-## 🧠 Inštalácia v Home Assistant
-
-### 1. Nainštaluj ESPHome
-V Home Assistant: **Nastavenia → Doplnky → Obchod s doplnkami → ESPHome Device Builder**.
-
-### 2. Vytvor nové zariadenie
-V ESPHome dashboarde: **New Device**. Pri prvom flashnutí pripoj modul cez USB/UART;
-ďalšie aktualizácie už pôjdu bezdrôtovo (OTA).
-
-### 3. Vlož konfiguráciu
-Zvoľ jednu z dvoch:
-
-- **Jednoduchá** → [`Sample_conf.yaml`](Sample_conf.yaml)
-- **Podrobná (s komentármi ku každému poľu)** → [`TCL-Conditioner.yaml`](TCL-Conditioner.yaml)
-
-Skopíruj obsah do svojho zariadenia v ESPHome a **uprav polia** (WiFi, názvy, kľúče).
-Nápoveda ku každému poľu je priamo v komentároch YAML.
-
-### 4. Flashni modul
-Prvýkrát cez USB/UART, potom už OTA.
-
----
-
-## 🔌 Platforma a zapojenie (SLWF-01Pro v2.1)
-
-Sekcia platformy v YAML pre tento modul:
+## Použitie
 
 ```yaml
-esp8266:
-  board: esp12e
+external_components:
+  - source:
+      type: git
+      url: https://github.com/Nortonko/kaisai_PRO-HEAT
+      ref: main            # radšej pripni na tag, napr. v2.0.0
+    components: [kaisai_ac]
+
+uart:
+  id: ac_uart
+  rx_pin: GPIO14
+  tx_pin: GPIO12
+  baud_rate: 115200
+  rx_buffer_size: 512
+
+climate:
+  - platform: kaisai_ac
+    id: kaisai
+    name: "Kaisai PRO HEAT+"
+    uart_id: ac_uart
+    poll_interval: 2s      # 0 = neposielať polly (AC streamuje aj sám)
+
+switch:
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    function: eco          # eco | sleep | health | anti_mildew
+    name: "ECO"
+
+select:
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    axis: vertical         # vertical | horizontal
+    name: "Vertikálna lamela"
 ```
 
-UART piny (v sekcii `substitutions:`):
+## Protokol (na dokumentáciu / ďalší vývoj)
 
-```yaml
-uart_tx: GPIO12
-uart_rx: GPIO14
-```
+Rámec: `A5 01 01 <cmd> <seq> 00 00 <len> <crcHi> <crcLo> <marker> <payload>`
+- `cmd`: `0x21` = dáta/povel, `0x23` = poll/riadenie
+- `seq`: sekvenčné číslo — pri `0x21` na bajte **[4]**, pri `0x23` na bajte **[5]** (bajt [4]=0)
+- `len`: celková dĺžka rámca v bajtoch
+- `crc`: CRC16-XMODEM (poly `0x1021`, init `0`, bez reflexie), big-endian,
+  počítaný cez celý rámec **okrem** dvoch CRC bajtov (t.j. `[0:8]` + `[10:len]`)
+- `marker`: `0C 0C` = stav z AC (čítanie), `0A 0A` = povel do AC (zápis)
 
-Predvolené hodnoty `GPIO3 / GPIO1` z pôvodného projektu sú pre **ESP-01S** — pre
-SLWF-01Pro ich **nepoužívaj**.
+Payload je zoznam polí tvaru `00 <ID> <hodnota…>`. Dekódované polia:
 
----
+| Pole | ID (anchor) | Význam |
+|------|-------------|--------|
+| power | `00 01 P 00 02` | 0 = vyp, 1 = zap |
+| setpoint | `00 02 00 00 HI LO` | teplota × 100 |
+| aktuálna tepl. | `00 03 00 00 HI LO` | teplota × 100 |
+| ventilátor | `00 05 F 00 0C\|72` | 0=AUTO…7=TURBO |
+| vert. swing | `00 0C V 00 0D` | 0/1 |
+| horiz. swing | `00 0D H 00 0E` | 0/1 |
+| horiz. poloha | `00 0E X 00 11` | kód 1–13 |
+| vert. poloha | `00 11 X 00 12` | kód 1–13 |
+| režim | `00 12 M 00 DF` | 0=AUTO,1=COOL,2=DRY,3=FAN,4=HEAT |
+| ECO | `00 DF E 00 C9` | 0/1 |
+| Sleep | `00 22 S 00 25` | 0/1 |
+| Health | `00 15 H 00 A4` | 0/1 |
+| Anti-mildew | `00 27 M 00 2D` | 0/1 |
 
-## 📦 Podgružované (remote) balíčky
+Poll (udržuje AC „v obraze"): `A5 01 01 23 00 <seq> 00 0C <crc> 80 0C`.
 
-Konfigurácia sa načítava modulárne z GitHubu cez sekciu `packages:`. Povinné je jadro,
-ostatné moduly sú voliteľné:
+## Poznámky a stav
 
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/Nortonko/kaisai_PRO-HEAT.git
-    ref: master
-    files:
-    # v - riadky s balíčkami zarovnaj presne pod túto značku, inak ESPHome hlási chyby
-      - packages/core.yaml          # POVINNÉ jadro (wifi/api/ota/uart/climate…)
-      # - packages/leds.yaml        # LED indikácia príjmu/vysielania (piny receive_led / transmit_led)
-      # - packages/bad_connect.yaml # 3-násobný pokus o odoslanie príkazu pri slabom spojení
-      # - packages/uart_speed.yaml  # prepínač rýchlosti UART v nastaveniach zariadenia
-    refresh: 30s
-```
+- Čítanie stavu je overené a stabilné. Ovládanie funguje na 5 V module.
+- ESP8266 pri 115200 môže mať softvérový UART na hrane — SLWF-01Pro (a jeho
+  piny GPIO12/14) sa osvedčil.
+- Polia Display/Beeper z A5 protokolu zatiaľ nie sú zmapované (v tejto jednotke
+  sa nevyskytli), preto ich komponent nevystavuje.
 
-> **Zarovnanie je povinné.** Všetky riadky `- packages/…` musia začínať na tej istej
-> pozícii ako značka `# v`. Zlé odsadenie = záplava nejasných chýb z ESPHome.
+## Poďakovanie
 
-`url:` je nastavené na **tento fork**, takže repozitár je samostatný. Ak by si chcel
-ťažiť z opráv v pôvodnom projekte, môžeš `url:` dočasne prepnúť na
-`https://github.com/I-am-nightingale/tclac.git`.
-
-### Ručné pridelenie IP adresy (voliteľné)
-Predvolene sa IP získa z DHCP. Ak chceš statickú, pridaj na koniec konfigurácie:
-
-```yaml
-wifi:
-  manual_ip:
-    static_ip: 192.168.1.4
-    gateway: 192.168.1.1
-    subnet: 255.255.255.0
-```
-
----
-
-## ✅ Overené jednotky (z pôvodného projektu)
-
-Okrem Kaisai PRO HEAT+ boli komunitne overené aj ďalšie jednotky na rovnakom protokole
-(s pájkovaním aj bez neho). Presne predpovedať kompatibilitu nie je možné — aj tá istá
-modelová značka sa líši výbavou (chýbajúci WiFi modul, chýbajúci USB kábel, nezapájkovaný
-UART konektor na doske):
-
-- Axioma ASX09H1/ASB09H1
-- Ballu BSAI-12HN1_15Y; Ballu Discovery DC BSVI-07/09/12HN8
-- Daichi AIR20AVQ1/AIR20FV1, AIR25AVQS1R-1, AIR35AVQS1R-1, DA35EVQ1-1
-- Dantex RK-12SATI/RK-12SATIE
-- Ecostar Radium KVS-RAD09CH
-- iFFALCON F1 18
-- Royal Clima Gloria Inverter; Royal Clima Pandora RC-PDC28HN
-- Tesla TT27TP61S-0932IAWUV
-- TCL: ELI ONF 12, Liferise ONF 09, TAC-CT09INV/R, TAC-07/09/12CHSA (rôzne varianty),
-  TAC-09HRID/E1, TAC-XAL24I, TPG31IHB a ďalšie
-
----
-
-## 🙏 Poďakovanie
-
-- Pôvodný komponent a všetka zásluha za protokol: **[I-am-nightingale/tclac](https://github.com/I-am-nightingale/tclac)**
-- Článok k projektu (v ruštine): <https://dzen.ru/a/ZmdoyUNswXWnulhg>
-- Poďakovať autorovi: [jeho Steam profil](https://steamcommunity.com/id/solovey-iron/)
-- Alternatíva cez MQTT (iný projekt): <https://github.com/pavel211/TCL-TAC-07-WiFi>
-
-Táto vetva len prekladá dokumentáciu do slovenčiny a prispôsobuje konfiguráciu modelu
-Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO) na module SLWF-01Pro v2.1. Samotný kód
-komponentu (`components/tclac`) je dielom pôvodného autora.
+Protokol A5/115200 bol zreverzovaný samostatne pre túto jednotku. Inšpirácia
+štruktúrou pochádza z rodiny TCL projektov (`I-am-nightingale/tclac`,
+`adaasch/AC-hack`), tie však používajú starší `BB`/9600 protokol a s touto
+jednotkou nie sú kompatibilné.
