@@ -42,12 +42,12 @@ ota:
   - platform: esphome
     password: !secret ota_pass
 
-# --- externý komponent z tvojho forku ---
+# --- externý komponent ---
 external_components:
   - source:
       type: git
       url: https://github.com/Nortonko/kaisai_PRO-HEAT
-      ref: main            # odporúčam pripnúť na konkrétny tag, napr. v2.0.0
+      ref: v1.0.0          
     components: [kaisai_ac]
 
 # --- UART do klimatizácie ---
@@ -89,16 +89,21 @@ switch:
     name: "Anti-mildew"
     icon: mdi:weather-fog
 
-# --- polohy lamiel ---
+# --- ventilátor a polohy lamiel (ako select entity) ---
 select:
   - platform: kaisai_ac
     kaisai_ac_id: kaisai
-    axis: vertical
+    target: fan
+    name: "Ventilátor"
+    icon: mdi:fan
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    target: vane_vertical
     name: "Vertikálna lamela"
     icon: mdi:arrow-up-down
   - platform: kaisai_ac
     kaisai_ac_id: kaisai
-    axis: horizontal
+    target: vane_horizontal
     name: "Horizontálna lamela"
     icon: mdi:arrow-left-right
 
