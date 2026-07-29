@@ -1,41 +1,79 @@
-# Komponent `kaisai_ac` — Kaisai PRO HEAT+ (protokol A5/115200)
+# Kaisai PRO HEAT+ — ESPHome komponent (protokol A5/115200)
 
-Externý ESPHome komponent na plné lokálne ovládanie klimatizácií **Kaisai PRO HEAT+**
-(KRW-12TLHI / KRWB-12TLHO) a príbuzných TCL jednotiek, ktoré po UART komunikujú
-**vlastným protokolom s hlavičkou `0xA5` pri 115200 baud** a kontrolným súčtom
-CRC16-XMODEM.
+Plne lokálne ovládanie klimatizácií **Kaisai PRO HEAT+** v **Home Assistant**
+cez **ESPHome**, bez cloudu a bez originálneho Tuya modulu.
 
-> ⚠️ Toto **nie je** ten istý protokol ako projekt `tclac` (ten je `BB`/9600).
-> Ide o novšiu vetvu, ktorá bola zreverzovaná z reálnej prevádzky originálneho
-> WiFi modulu **TCWBRCU1** (Tuya WBR3). Ak tvoja jednotka po zapojení posiela
-> rámce začínajúce `A5` pri 115200, si na správnom mieste.
+Projekt obsahuje externý ESPHome komponent `kaisai_ac`, ktorý komunikuje
+so vzduchotechnickou jednotkou po UART **vlastným protokolom s hlavičkou `0xA5`
+pri 115200 baud** (CRC16-XMODEM). Protokol bol zreverzovaný z reálnej prevádzky.
 
-## Čo komponent poskytuje
+| Časť | Typové označenie |
+|------|------------------|
+| Vnútorná jednotka | **KRW-12TLHI** |
+| Vonkajšia jednotka | **KRWB-12TLHO** |
 
-- **climate entita**: režim (OFF / chladenie / kúrenie / sušenie / ventilátor / auto),
-  cieľová teplota (16–31 °C), aktuálna teplota, ventilátor (8 stupňov:
-  AUTO/MUTE/LOW/LOW-MID/MID/MID-HIGH/HIGH/TURBO), swing (OFF/vert/horiz/both)
-- **switch**: ECO, Sleep, Health, Anti-mildew
-- **select**: poloha vertikálnej a horizontálnej lamely (kývanie, prúdové režimy,
-  odstupňované polohy)
+> ⚠️ **Toto nie je variant projektu `tclac`.** Staršie TCL jednotky používajú
+> protokol `BB` pri 9600 baud (projekty `tclac`, `AC-hack`). Táto jednotka
+> (novšia generácia s modulom TCWBRCU1 / Tuya WBR3) hovorí protokolom `A5`
+> pri 115200 a s tými projektmi **nie je kompatibilná**. Ak tvoja jednotka po
+> zapojení posiela rámce začínajúce `A5` pri 115200, si na správnom mieste.
 
-## Hardvér — dôležité
+---
 
-Klimatizácia má **5 V UART**. WiFi modul preto musí vysielať na 5 V úrovni —
-priame 3,3 V z holého ESP (napr. D1 mini) jednotka **nepočuje** a povely ignoruje.
-Odporúčaný modul je **SMLIGHT SLWF-01Pro v2.1**, ktorý má prevodník úrovní na doske.
-Prípadne externý level shifter (BSS138 / 74AHCT125) na smere ESP TX → AC RX.
+## Čo to vie
 
-Zapojenie a kompletný device config sú v `kaisai-ac-example.yaml`.
+- **Klimatizácia (climate)**: zapnutie/vypnutie, režim (chladenie, kúrenie,
+  sušenie, ventilátor, auto), cieľová teplota 16–31 °C, aktuálna teplota,
+  swing (vertikálny / horizontálny / oba / vypnutý)
+- **Ventilátor (select)**: 8 stupňov — AUTO, MUTE, LOW, LOW-MID, MID, MID-HIGH,
+  HIGH, TURBO
+- **Lamely (select)**: vertikálna aj horizontálna — kývanie, prúdové režimy,
+  odstupňované polohy
+- **Funkcie (switch)**: ECO, Sleep, Health, Anti-mildew
 
-## Použitie
+Čítanie stavu aj ovládanie sú overené na reálnej jednotke.
+
+---
+
+## ⚠️ Hardvér — pozor na napäťovú úroveň
+
+Riadiaca doska klimatizácie má **5 V UART**. WiFi modul preto musí vysielať na
+5 V úrovni — priame **3,3 V z holého ESP (napr. D1 mini) jednotka NEPRIJME** a
+povely ignoruje (čítanie funguje aj tak, ale ovládanie nie).
+
+Odporúčaný modul: **SMLIGHT SLWF-01Pro v2.1** — má prevodník úrovní na doske.
+Alternatívne externý level shifter (BSS138 / 74AHCT125) na smere ESP TX → AC RX.
+
+### Zapojenie (konektor CN16)
+
+| CN16 | Modul |
+|------|-------|
+| +5V | +5V |
+| GND | GND |
+| TX (stavový vodič z AC) | RX modulu (GPIO14) |
+| RX (povely do AC) | TX modulu (GPIO12) |
+
+> Nezasúvaj SLWF-01Pro priamo do konektora AC — jeho konektor je zapojený pre
+> „Midea" rozostavenie pinov, ktoré sa s Kaisai/TCL nemusí zhodovať. Prepoj
+> vodiče ručne na CN16.
+
+---
+
+## Inštalácia
+
+1. V Home Assistant maj **ESPHome Device Builder** (ESPHome ≥ 2026.4).
+2. Skopíruj obsah `kaisai-ac-example.yaml` do nového zariadenia a uprav secrets.
+3. Komponent sa načíta priamo z tohto repozitára cez `external_components`.
+4. Prvé flashnutie cez USB, ďalej OTA.
+
+### Minimálny config
 
 ```yaml
 external_components:
   - source:
       type: git
       url: https://github.com/Nortonko/kaisai_PRO-HEAT
-      ref: main            # radšej pripni na tag, napr. v2.0.0
+      ref: v1.0.0            # pripni na tag pre stabilitu
     components: [kaisai_ac]
 
 uart:
@@ -50,39 +88,44 @@ climate:
     id: kaisai
     name: "Kaisai PRO HEAT+"
     uart_id: ac_uart
-    poll_interval: 2s      # 0 = neposielať polly (AC streamuje aj sám)
+    poll_interval: 2s        # 0 = neposielať polly
 
 switch:
   - platform: kaisai_ac
     kaisai_ac_id: kaisai
-    function: eco          # eco | sleep | health | anti_mildew
+    function: eco            # eco | sleep | health | anti_mildew
     name: "ECO"
 
 select:
   - platform: kaisai_ac
     kaisai_ac_id: kaisai
-    axis: vertical         # vertical | horizontal
-    name: "Vertikálna lamela"
+    target: fan              # fan | vane_vertical | vane_horizontal
+    name: "Ventilátor"
 ```
 
-## Protokol (na dokumentáciu / ďalší vývoj)
+Kompletný príklad so všetkými entitami je v [`kaisai-ac-example.yaml`](kaisai-ac-example.yaml).
+
+---
+
+## Protokol (pre zvedavých a ďalší vývoj)
 
 Rámec: `A5 01 01 <cmd> <seq> 00 00 <len> <crcHi> <crcLo> <marker> <payload>`
+
 - `cmd`: `0x21` = dáta/povel, `0x23` = poll/riadenie
-- `seq`: sekvenčné číslo — pri `0x21` na bajte **[4]**, pri `0x23` na bajte **[5]** (bajt [4]=0)
-- `len`: celková dĺžka rámca v bajtoch
+- `seq`: sekvenčné číslo — pri `0x21` na bajte **[4]**, pri `0x23` na bajte **[5]**
+- `len`: celková dĺžka rámca
 - `crc`: CRC16-XMODEM (poly `0x1021`, init `0`, bez reflexie), big-endian,
-  počítaný cez celý rámec **okrem** dvoch CRC bajtov (t.j. `[0:8]` + `[10:len]`)
+  cez celý rámec **okrem** dvoch CRC bajtov (`[0:8]` + `[10:len]`)
 - `marker`: `0C 0C` = stav z AC (čítanie), `0A 0A` = povel do AC (zápis)
 
-Payload je zoznam polí tvaru `00 <ID> <hodnota…>`. Dekódované polia:
+Payload je zoznam polí tvaru `00 <ID> <hodnota…>`:
 
-| Pole | ID (anchor) | Význam |
-|------|-------------|--------|
+| Pole | Anchor | Význam |
+|------|--------|--------|
 | power | `00 01 P 00 02` | 0 = vyp, 1 = zap |
 | setpoint | `00 02 00 00 HI LO` | teplota × 100 |
-| aktuálna tepl. | `00 03 00 00 HI LO` | teplota × 100 |
-| ventilátor | `00 05 F 00 0C\|72` | 0=AUTO…7=TURBO |
+| aktuálna teplota | `00 03 00 00 HI LO` | teplota × 100 |
+| ventilátor | `00 05 F 00 0C\|72` | 0=AUTO … 7=TURBO |
 | vert. swing | `00 0C V 00 0D` | 0/1 |
 | horiz. swing | `00 0D H 00 0E` | 0/1 |
 | horiz. poloha | `00 0E X 00 11` | kód 1–13 |
@@ -93,19 +136,24 @@ Payload je zoznam polí tvaru `00 <ID> <hodnota…>`. Dekódované polia:
 | Health | `00 15 H 00 A4` | 0/1 |
 | Anti-mildew | `00 27 M 00 2D` | 0/1 |
 
-Poll (udržuje AC „v obraze"): `A5 01 01 23 00 <seq> 00 0C <crc> 80 0C`.
+Poll rámec (udržuje AC v obraze): `A5 01 01 23 00 <seq> 00 0C <crc> 80 0C`.
 
-## Poznámky a stav
+Podrobnejšia dokumentácia komponentu je v [`components/kaisai_ac/README.md`](components/kaisai_ac/README.md).
 
-- Čítanie stavu je overené a stabilné. Ovládanie funguje na 5 V module.
-- ESP8266 pri 115200 môže mať softvérový UART na hrane — SLWF-01Pro (a jeho
-  piny GPIO12/14) sa osvedčil.
-- Polia Display/Beeper z A5 protokolu zatiaľ nie sú zmapované (v tejto jednotke
-  sa nevyskytli), preto ich komponent nevystavuje.
+---
 
-## Poďakovanie
+## Kompatibilita
 
-Protokol A5/115200 bol zreverzovaný samostatne pre túto jednotku. Inšpirácia
-štruktúrou pochádza z rodiny TCL projektov (`I-am-nightingale/tclac`,
-`adaasch/AC-hack`), tie však používajú starší `BB`/9600 protokol a s touto
-jednotkou nie sú kompatibilné.
+- ESPHome / Home Assistant **2026.4.0** alebo novšie (overené na 2026.7.3).
+- Určené pre Kaisai PRO HEAT+ (KRW-12TLHI / KRWB-12TLHO). Iné jednotky s rovnakým
+  `A5`/115200 protokolom môžu fungovať tiež, ale nie sú overené.
+
+## Prispievanie
+
+Ak máš inú jednotku na tomto protokole a nájdeš ďalšie polia (napr. Display,
+Beeper, diagnostika prúdu/výkonu), pull requesty a záchyty rámcov sú vítané.
+
+## Licencia
+
+MIT. Protokol bol zreverzovaný samostatne;
+inšpiráciu štruktúrou dala rodina TCL projektov, samotný kód je nový.
