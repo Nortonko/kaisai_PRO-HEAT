@@ -155,5 +155,4 @@ Beeper, diagnostika prúdu/výkonu), pull requesty a záchyty rámcov sú vítan
 
 ## Licencia
 
-MIT. Protokol bol zreverzovaný samostatne;
-inšpiráciu štruktúrou dala rodina TCL projektov, samotný kód je nový.
+[MIT](LICENSE). Protokol bol zreverzovaný samostatne; samotný kód je nový.
