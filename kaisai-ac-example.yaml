@@ -42,12 +42,12 @@ ota:
   - platform: esphome
     password: !secret ota_pass
 
-# --- externý komponent ---
+# --- externý komponent z tvojho forku ---
 external_components:
   - source:
       type: git
       url: https://github.com/Nortonko/kaisai_PRO-HEAT
-      ref: v1.0.0          
+      ref: v1.0.0          # pripni na tag pre stabilitu
     components: [kaisai_ac]
 
 # --- UART do klimatizácie ---
@@ -65,6 +65,7 @@ climate:
     name: None             # prevezme friendly_name zariadenia
     uart_id: ac_uart
     poll_interval: 2s
+    republish_interval: 30s   # znovu odoslať celý stav do HA každých 30 s
 
 # --- binárne funkcie ---
 switch:
@@ -88,6 +89,21 @@ switch:
     function: anti_mildew
     name: "Anti-mildew"
     icon: mdi:weather-fog
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    function: display
+    name: "Displej"
+    icon: mdi:television-ambient-light
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    function: beep
+    name: "Pípanie"
+    icon: mdi:volume-high
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    function: soft_wind
+    name: "Jemný vietor"
+    icon: mdi:weather-windy
 
 # --- ventilátor a polohy lamiel (ako select entity) ---
 select:
@@ -107,8 +123,45 @@ select:
     name: "Horizontálna lamela"
     icon: mdi:arrow-left-right
 
-# --- doplnkové diagnostické senzory (voliteľné) ---
+# --- diagnostické senzory ---
+# Poznámka: netreba žiadne heartbeat/timeout filtre — komponent sám periodicky
+# znovu odosiela stav (viď republish_interval vyššie), takže senzory nezostarnú.
 sensor:
+  # Pole 0x64 = otáčky ventilátora vonkajšej jednotky (RPM). Mení sa málo,
+  # pri vypnutom ventilátore hlási 0.
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    type: fan_rpm              # pole 0x64 — otáčky ventilátora vonk. jednotky
+    name: "Otáčky ventilátora vonk. jednotky"
+    unit_of_measurement: "RPM"
+    state_class: measurement
+    icon: "mdi:fan"
+  # Pole 0x65 = frekvencia kompresora (Hz). Hodnota je priamo v Hz (napr. 32 = 32 Hz).
+  # V ustálenom chladení je stabilná; 0 znamená stojaci kompresor.
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    type: compressor_freq      # pole 0x65 — frekvencia kompresora
+    name: "Frekvencia kompresora"
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    type: coil_temp_inner      # pole 0x5C — teplota vnútorného výmenníka
+    name: "Teplota vnútorného výmenníka"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    type: coil_temp_outer      # pole 0x60 — teplota vonkajšieho výmenníka
+    name: "Teplota vonkajšieho výmenníka"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
   - platform: wifi_signal
     name: "WiFi signál"
     update_interval: 60s

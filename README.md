@@ -29,7 +29,9 @@ pri 115200 baud** (CRC16-XMODEM). Protokol bol zreverzovaný z reálnej prevádz
   HIGH, TURBO
 - **Lamely (select)**: vertikálna aj horizontálna — kývanie, prúdové režimy,
   odstupňované polohy
-- **Funkcie (switch)**: ECO, Sleep, Health, Anti-mildew
+- **Funkcie (switch)**: ECO, Sleep, Health, Anti-mildew, displej, pípanie, jemný vietor
+- **Diagnostika (sensor)**: otáčky ventilátora vonk. jednotky (RPM), frekvencia
+  kompresora (Hz), teploty vnútorného a vonkajšieho výmenníka (°C)
 
 Čítanie stavu aj ovládanie sú overené na reálnej jednotke.
 
@@ -73,7 +75,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/Nortonko/kaisai_PRO-HEAT
-      ref: v1.0.0            # pripni na tag pre stabilitu
+      ref: v1.0.1            # pripni na tag pre stabilitu
     components: [kaisai_ac]
 
 uart:
@@ -89,11 +91,12 @@ climate:
     name: "Kaisai PRO HEAT+"
     uart_id: ac_uart
     poll_interval: 2s        # 0 = neposielať polly
+    republish_interval: 30s  # ako často znovu poslať celý stav do HA (0 = vypnúť)
 
 switch:
   - platform: kaisai_ac
     kaisai_ac_id: kaisai
-    function: eco            # eco | sleep | health | anti_mildew
+    function: eco            # eco | sleep | health | anti_mildew | display | beep | soft_wind
     name: "ECO"
 
 select:
@@ -101,9 +104,25 @@ select:
     kaisai_ac_id: kaisai
     target: fan              # fan | vane_vertical | vane_horizontal
     name: "Ventilátor"
+
+sensor:
+  - platform: kaisai_ac
+    kaisai_ac_id: kaisai
+    type: compressor_freq    # fan_rpm | compressor_freq | coil_temp_inner | coil_temp_outer
+    name: "Frekvencia kompresora"
+    unit_of_measurement: "Hz"
+    device_class: frequency
 ```
 
 Kompletný príklad so všetkými entitami je v [`kaisai-ac-example.yaml`](kaisai-ac-example.yaml).
+
+### Čerstvosť dát v Home Assistant
+
+Komponent publikuje zmeny okamžite a navyše raz za `republish_interval`
+(predvolene 30 s) znovu odošle **celý posledný známy stav** do HA. Klimatizácia
+totiž posiela stav sporadicky (v zhlukoch), takže bez toho by hodnoty, ktoré sa
+dlho nemenia, v HA „zostarli" alebo spadli na „nedostupné". **Netreba preto
+žiadne `heartbeat` ani `timeout` filtre.** Vypnúť sa dá cez `republish_interval: 0s`.
 
 ---
 
@@ -135,8 +154,18 @@ Payload je zoznam polí tvaru `00 <ID> <hodnota…>`:
 | Sleep | `00 22 S 00 25` | 0/1 |
 | Health | `00 15 H 00 A4` | 0/1 |
 | Anti-mildew | `00 27 M 00 2D` | 0/1 |
+| displej (podsvietenie) | `00 1E D` | 0/1 |
+| pípanie (beep) | `00 25 B 00 27` | 0/1 |
+| jemný vietor (soft wind) | `00 26 S` | 0/1 |
+| otáčky ventilátora vonk. jednotky | `00 64` + 4B, potom `00 65` | RPM (0 = stojí) |
+| frekvencia kompresora | `00 65` + 4B, potom `00 13` | Hz (0 = stojí) |
+| tepl. vnút. výmenníka | `00 5C 00 00 HI LO` | °C ×100 |
+| tepl. vonk. výmenníka | `00 60 00 00 HI LO` | °C ×100 |
 
-Poll rámec (udržuje AC v obraze): `A5 01 01 23 00 <seq> 00 0C <crc> 80 0C`.
+Povel do AC používa rovnaké kódovanie polí, len s markerom `0A 0A`. Po povele
+(`0x21`/`0A 0A`) AC do ~150 ms odpovie ACK (`0x23`/`80 0A`); stavový rámec
+(`0C 0C`) modul potvrdzuje `80 0C`. Reálny elektrický príkon (W) protokol
+nehlási žiadnym poľom.
 
 Podrobnejšia dokumentácia komponentu je v [`components/kaisai_ac/README.md`](components/kaisai_ac/README.md).
 
@@ -150,8 +179,8 @@ Podrobnejšia dokumentácia komponentu je v [`components/kaisai_ac/README.md`](c
 
 ## Prispievanie
 
-Ak máš inú jednotku na tomto protokole a nájdeš ďalšie polia (napr. Display,
-Beeper, diagnostika prúdu/výkonu), pull requesty a záchyty rámcov sú vítané.
+Ak máš inú jednotku na tomto protokole a nájdeš ďalšie polia, pull requesty
+a záchyty rámcov sú vítané.
 
 ## Licencia
 
