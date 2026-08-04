@@ -6,6 +6,7 @@ from esphome.const import CONF_ID
 from . import KaisaiAC
 
 CONF_POLL_INTERVAL = "poll_interval"
+CONF_REPUBLISH_INTERVAL = "republish_interval"
 
 CONFIG_SCHEMA = (
     climate.climate_schema(KaisaiAC)
@@ -13,6 +14,9 @@ CONFIG_SCHEMA = (
         {
             cv.Optional(
                 CONF_POLL_INTERVAL, default="2s"
+            ): cv.positive_time_period_milliseconds,
+            cv.Optional(
+                CONF_REPUBLISH_INTERVAL, default="30s"
             ): cv.positive_time_period_milliseconds,
         }
     )
@@ -26,3 +30,4 @@ async def to_code(config):
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
     cg.add(var.set_poll_interval(config[CONF_POLL_INTERVAL]))
+    cg.add(var.set_republish_interval(config[CONF_REPUBLISH_INTERVAL]))

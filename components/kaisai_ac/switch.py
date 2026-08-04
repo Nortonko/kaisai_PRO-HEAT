@@ -11,6 +11,9 @@ FUNCTIONS = {
     "sleep": KaisaiFunction.FUNC_SLEEP,
     "health": KaisaiFunction.FUNC_HEALTH,
     "anti_mildew": KaisaiFunction.FUNC_MILDEW,
+    "display": KaisaiFunction.FUNC_DISPLAY,
+    "beep": KaisaiFunction.FUNC_BEEP,
+    "soft_wind": KaisaiFunction.FUNC_SOFTWIND,
 }
 
 CONFIG_SCHEMA = switch.switch_schema(KaisaiSwitch).extend(

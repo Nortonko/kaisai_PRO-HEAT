@@ -51,6 +51,26 @@ static bool ext16(const uint8_t *d, size_t n, uint8_t id, uint16_t &out) {
     }
   return false;
 }
+// 32-bit hodnota tvaru: 00 <ID> B3 B2 B1 B0 00 <after>  (after = ID nasledujúceho poľa)
+static bool ext32(const uint8_t *d, size_t n, uint8_t id, uint8_t after, uint32_t &out) {
+  for (size_t i = 0; i + 7 < n; i++)
+    if (d[i] == 0x00 && d[i + 1] == id && d[i + 6] == 0x00 && d[i + 7] == after) {
+      out = ((uint32_t) d[i + 2] << 24) | ((uint32_t) d[i + 3] << 16) |
+            ((uint32_t) d[i + 4] << 8) | d[i + 5];
+      return true;
+    }
+  return false;
+}
+// ako ext8, ale "after" je voliteľný — pole smie byť aj na konci rámca.
+// Nájde vzor 00 <id> <val> a ak za ním nasleduje 00, prijme ho.
+static bool ext8_opt(const uint8_t *d, size_t n, uint8_t id, uint8_t &out) {
+  for (size_t i = 0; i + 2 < n; i++)
+    if (d[i] == 0x00 && d[i + 1] == id) {
+      out = d[i + 2];
+      return true;
+    }
+  return false;
+}
 
 // ================= CRC =================
 uint16_t KaisaiAC::crc16_xmodem_(const uint8_t *data, size_t len) {
@@ -157,6 +177,7 @@ void KaisaiAC::process_status_(const uint8_t *d, size_t n) {
   // ventilátor -> select
   if (ext8b(d, n, 0x05, 0x0C, 0x72, v) && v < 8 && v != this->fan_code_state_) {
     this->fan_code_state_ = v;
+    this->sel_state_[SEL_FAN] = FAN_NAMES[v];
     if (this->sel_[SEL_FAN] != nullptr)
       this->sel_[SEL_FAN]->publish_state(FAN_NAMES[v]);
   }
@@ -179,36 +200,105 @@ void KaisaiAC::process_status_(const uint8_t *d, size_t n) {
   // polohy lamiel -> select
   if (ext8(d, n, 0x11, 0x12, v) && v != this->vane_v_code_) {
     this->vane_v_code_ = v;
-    if (this->sel_[SEL_VANE_V] != nullptr)
-      for (auto &o : VANE_V)
-        if (o.code == v) {
+    for (auto &o : VANE_V)
+      if (o.code == v) {
+        this->sel_state_[SEL_VANE_V] = o.name;
+        if (this->sel_[SEL_VANE_V] != nullptr)
           this->sel_[SEL_VANE_V]->publish_state(o.name);
-          break;
-        }
+        break;
+      }
   }
   if (ext8(d, n, 0x0E, 0x11, v) && v != this->vane_h_code_) {
     this->vane_h_code_ = v;
-    if (this->sel_[SEL_VANE_H] != nullptr)
-      for (auto &o : VANE_H)
-        if (o.code == v) {
+    for (auto &o : VANE_H)
+      if (o.code == v) {
+        this->sel_state_[SEL_VANE_H] = o.name;
+        if (this->sel_[SEL_VANE_H] != nullptr)
           this->sel_[SEL_VANE_H]->publish_state(o.name);
-          break;
-        }
+        break;
+      }
   }
 
-  // binárne funkcie -> switch
-  if (ext8(d, n, 0xDF, 0xC9, v) && this->sw_[FUNC_ECO] != nullptr)
-    this->sw_[FUNC_ECO]->publish_state(v != 0);
-  if (ext8(d, n, 0x22, 0x25, v) && this->sw_[FUNC_SLEEP] != nullptr)
-    this->sw_[FUNC_SLEEP]->publish_state(v != 0);
-  if (ext8(d, n, 0x15, 0xA4, v) && this->sw_[FUNC_HEALTH] != nullptr)
-    this->sw_[FUNC_HEALTH]->publish_state(v != 0);
-  if (ext8(d, n, 0x27, 0x2D, v) && this->sw_[FUNC_MILDEW] != nullptr)
-    this->sw_[FUNC_MILDEW]->publish_state(v != 0);
+  // binárne funkcie -> switch (helper aj uloží stav pre periodické republish)
+  if (ext8(d, n, 0xDF, 0xC9, v))
+    this->publish_switch_(FUNC_ECO, v != 0);
+  if (ext8(d, n, 0x22, 0x25, v))
+    this->publish_switch_(FUNC_SLEEP, v != 0);
+  if (ext8(d, n, 0x15, 0xA4, v))
+    this->publish_switch_(FUNC_HEALTH, v != 0);
+  if (ext8(d, n, 0x27, 0x2D, v))
+    this->publish_switch_(FUNC_MILDEW, v != 0);
+  if (ext8(d, n, 0x25, 0x27, v))
+    this->publish_switch_(FUNC_BEEP, v != 0);
+  // soft wind / jemný vietor (0x26); občas končí rámec -> tolerantný variant
+  if (ext8_opt(d, n, 0x26, v))
+    this->publish_switch_(FUNC_SOFTWIND, v != 0);
+  // 0x1E občas končí rámec -> tolerantný variant
+  if (ext8_opt(d, n, 0x1E, v))
+    this->publish_switch_(FUNC_DISPLAY, v != 0);
+
+  // senzory: otáčky ventilátora vonkajšej jednotky (pole 0x64, RPM) a
+  // frekvencia kompresora (pole 0x65, Hz). Obe hodnoty sú raw priamo v jednotke.
+  uint32_t u32;
+  if (ext32(d, n, 0x64, 0x65, u32) && this->sens_[SENS_FAN_RPM] != nullptr && u32 != this->last_fan_rpm_) {
+    this->last_fan_rpm_ = u32;
+    this->sens_[SENS_FAN_RPM]->publish_state((float) u32);
+  }
+  if (ext32(d, n, 0x65, 0x13, u32) && this->sens_[SENS_COMP_FREQ] != nullptr && u32 != this->last_comp_freq_) {
+    this->last_comp_freq_ = u32;
+    this->sens_[SENS_COMP_FREQ]->publish_state((float) u32);
+  }
+
+  // teploty výmenníkov: vnútorný (pole 0x5C) a vonkajší (pole 0x60), °C ×100
+  if (ext16(d, n, 0x5C, v16) && this->sens_[SENS_COIL_IN] != nullptr && v16 != this->last_coil_in_) {
+    this->last_coil_in_ = v16;
+    this->sens_[SENS_COIL_IN]->publish_state((float) v16 / 100.0f);
+  }
+  if (ext16(d, n, 0x60, v16) && this->sens_[SENS_COIL_OUT] != nullptr && v16 != this->last_coil_out_) {
+    this->last_coil_out_ = v16;
+    this->sens_[SENS_COIL_OUT]->publish_state((float) v16 / 100.0f);
+  }
 
   this->have_state_ = true;
   if (changed)
     this->publish_state();
+}
+
+void KaisaiAC::publish_switch_(KaisaiFunction f, bool on) {
+  this->sw_state_[f] = on ? 1 : 0;
+  if (this->sw_[f] != nullptr)
+    this->sw_[f]->publish_state(on);
+}
+
+// Periodicky pošle do HA celý posledný známy stav, aj keď sa nič nezmenilo.
+// Vďaka tomu entity nikdy nezostarnú ani nespadnú na "nedostupné", aj keď AC
+// posiela stav sporadicky. Nahrádza potrebu heartbeat/timeout filtrov v YAML-e.
+void KaisaiAC::republish_all_() {
+  if (!this->have_state_)
+    return;
+
+  // climate (režim, teploty, ventilátor, swing)
+  this->publish_state();
+
+  // senzory — z posledných raw hodnôt
+  if (this->sens_[SENS_FAN_RPM] != nullptr && this->last_fan_rpm_ != 0xFFFFFFFF)
+    this->sens_[SENS_FAN_RPM]->publish_state((float) this->last_fan_rpm_);
+  if (this->sens_[SENS_COMP_FREQ] != nullptr && this->last_comp_freq_ != 0xFFFFFFFF)
+    this->sens_[SENS_COMP_FREQ]->publish_state((float) this->last_comp_freq_);
+  if (this->sens_[SENS_COIL_IN] != nullptr && this->last_coil_in_ != 0xFFFF)
+    this->sens_[SENS_COIL_IN]->publish_state((float) this->last_coil_in_ / 100.0f);
+  if (this->sens_[SENS_COIL_OUT] != nullptr && this->last_coil_out_ != 0xFFFF)
+    this->sens_[SENS_COIL_OUT]->publish_state((float) this->last_coil_out_ / 100.0f);
+
+  // switche
+  for (uint8_t i = 0; i < 7; i++)
+    if (this->sw_[i] != nullptr && this->sw_state_[i] >= 0)
+      this->sw_[i]->publish_state(this->sw_state_[i] != 0);
+
+  // selecty
+  for (uint8_t i = 0; i < 3; i++)
+    if (this->sel_[i] != nullptr && !this->sel_state_[i].empty())
+      this->sel_[i]->publish_state(this->sel_state_[i]);
 }
 
 void KaisaiAC::recompute_mode_() {
@@ -240,6 +330,7 @@ void KaisaiAC::recompute_swing_() {
 // ============== climate rozhranie ==============
 climate::ClimateTraits KaisaiAC::traits() {
   auto t = climate::ClimateTraits();
+  t.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
   t.set_supported_modes({
       climate::CLIMATE_MODE_OFF,
       climate::CLIMATE_MODE_COOL,
@@ -306,12 +397,16 @@ void KaisaiAC::control(const climate::ClimateCall &call) {
 
 // ============== API pre detské entity ==============
 void KaisaiAC::register_switch(KaisaiFunction f, KaisaiSwitch *sw) {
-  if (f < 4)
+  if (f < 7)
     this->sw_[f] = sw;
 }
 void KaisaiAC::register_select(uint8_t target, KaisaiSelect *sel) {
   if (target < 3)
     this->sel_[target] = sel;
+}
+void KaisaiAC::register_sensor(uint8_t type, KaisaiSensor *s) {
+  if (type < 4)
+    this->sens_[type] = s;
 }
 
 void KaisaiAC::set_function_state(KaisaiFunction f, bool on) {
@@ -321,6 +416,9 @@ void KaisaiAC::set_function_state(KaisaiFunction f, bool on) {
     case FUNC_SLEEP: this->send_command_({0x00, 0x22, val}); break;
     case FUNC_HEALTH: this->send_command_({0x00, 0x15, val}); break;
     case FUNC_MILDEW: this->send_command_({0x00, 0x27, val}); break;
+    case FUNC_DISPLAY: this->send_command_({0x00, 0x1E, val}); break;
+    case FUNC_BEEP:    this->send_command_({0x00, 0x25, val}); break;
+    case FUNC_SOFTWIND: this->send_command_({0x00, 0x26, val}); break;
   }
 }
 
@@ -374,6 +472,11 @@ void KaisaiAC::loop() {
     this->send_poll_();
     this->last_poll_ = now;
   }
+
+  if (this->republish_interval_ > 0 && (now - this->last_republish_ >= this->republish_interval_)) {
+    this->republish_all_();
+    this->last_republish_ = now;
+  }
 }
 
 void KaisaiAC::dump_config() {
@@ -402,6 +505,12 @@ void KaisaiSelect::control(const std::string &value) {
   if (this->parent_ != nullptr)
     this->parent_->set_select_by_name(this->target_, value);
   this->publish_state(value);
+}
+
+// ============== KaisaiSensor ==============
+void KaisaiSensor::setup() {
+  if (this->parent_ != nullptr)
+    this->parent_->register_sensor(this->type_, this);
 }
 
 }  // namespace kaisai_ac
